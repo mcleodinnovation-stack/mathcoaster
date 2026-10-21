@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Function Coaster</title>
+<meta name="description" content="Type a function, build a roller coaster from its graph, and ride it. Explore zeros, turning points, slope, concavity and transformations.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1330'/%3E%3Cpath d='M6 50 C16 50 16 14 26 14 S36 44 44 44 S52 24 58 24' fill='none' stroke='%23ff4d6d' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='26' cy='14' r='5' fill='%23ffd166'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<script>document.documentElement.className += ' js';</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+<div class="nojs-banner" role="alert">
+  <b>📱 Function Coaster can't run in this viewer.</b>
+  <p>It's an interactive app, so it needs a real web browser. Phone previews of files sent by text, email or chat can't run it.</p>
+  <a class="nojs-link" href="https://hackthemarket.github.io/functional_rollercoaster/">▶ Open the web version</a>
+  <p class="nojs-small">https://hackthemarket.github.io/functional_rollercoaster/<br>On a computer, you can also open this file in Chrome, Edge, Safari or Firefox.</p>
+  <p class="nojs-small" id="nojsDetail"></p>
+</div>
+<div id="app" class="app">
+  <header class="topbar">
+    <div class="brand" aria-label="Function Coaster">
+      <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1f2b66"/><path d="M6 50 C16 50 16 14 26 14 S36 44 44 44 S52 24 58 24" fill="none" stroke="#ff4d6d" stroke-width="6" stroke-linecap="round"/><path d="M6 56 H58" stroke="#4cc9f0" stroke-width="3" stroke-linecap="round" opacity=".7"/><circle cx="26" cy="14" r="5" fill="#ffd166"/></svg>
+      <div class="brand-text"><span class="b1">Function</span><span class="b2">Coaster</span></div>
+    </div>
+    <form id="fnForm" class="fn-form" autocomplete="off">
+      <div class="seg mode-seg" id="modeSeg" role="group" aria-label="Kind of track">
+        <button type="button" data-mode="single" class="on" title="One formula for the whole track">ƒ<span class="txt-wide"> One function</span></button>
+        <button type="button" data-mode="pieces" title="Build the track from pieces (a piecewise function)">🧩<span class="txt-wide"> Pieces</span></button>
+      </div>
+      <div class="fn-field">
+        <label for="fnInput" class="fx">f(<i>x</i>)&nbsp;=</label>
+        <button type="button" id="pwSummary" class="pw-summary" hidden title="Edit the pieces"></button>
+        <input id="fnInput" class="fn-input" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="fnPreview" value="-2x^4 + 7x^3 - 4x^2 - 0.5x + 1">
+        <button type="button" id="btnKeypad" class="icon-btn subtle" title="Math symbols keypad" aria-label="Math symbols keypad">√x</button>
+      </div>
+      <div class="dom-field">
+        <label for="domA">from <i>x</i>&nbsp;=</label>
+        <input id="domA" class="dom-input" type="text" spellcheck="false" aria-label="Track starts at x" value="-0.40907">
+        <label for="domB">to</label>
+        <input id="domB" class="dom-input" type="text" spellcheck="false" aria-label="Track ends at x" value="2.76854">
+        <button type="button" id="btnSnap" class="icon-btn subtle" title="Snap both ends of the track to the nearest zeros (ground level)" aria-label="Snap ends to zeros">⤓0</button>
+      </div>
+      <button type="submit" id="btnBuild" class="btn btn-build">🔨 Build<span class="txt-mid"> track</span></button>
+    </form>
+    <div class="top-actions">
+      <button id="btnSurprise" class="btn btn-ghost" title="Surprise me with a random track">🎲<span class="txt-wide"> Surprise me</span></button>
+      <button id="btnSound" class="icon-btn" title="Sound on/off (M)" aria-label="Sound">🔊</button>
+      <button id="btnSettings" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+      <button id="btnHelp" class="icon-btn help" title="How to play &amp; math help" aria-label="Help">?</button>
+    </div>
+  </header>
+
+  <div class="subbar">
+    <div id="fnPreview" class="fn-preview" aria-live="polite"></div>
+    <div id="paramBar" class="param-bar"></div>
+  </div>
+  <div id="matchBar" class="match-bar" hidden></div>
+
+  <main class="layout">
+    <section class="stage">
+      <div id="view3d" class="view view3d">
+        <div id="c3dHost" class="c3d-host"></div>
+        <div id="vignette" class="vignette"></div>
+        <div id="hud" class="hud hud-left">
+          <div class="hud-speed"><span id="hudSpeed" class="big">0</span><span id="hudSpeedUnit" class="unit">mph</span></div>
+          <div class="hud-sub" id="hudSpeedSub">0 m/s</div>
+          <div class="hud-bar"><div id="hudSpeedBar"></div></div>
+          <div class="hud-rows">
+            <div><span class="k"><i>x</i></span><span id="hudX" class="v">0</span></div>
+            <div><span class="k">height <i>f</i>(<i>x</i>)</span><span id="hudY" class="v">0</span></div>
+            <div><span class="k">slope</span><span id="hudSlope" class="v">0</span></div>
+            <div id="hudPieceRow" hidden><span class="k">piece</span><span id="hudPiece" class="v"></span></div>
+          </div>
+          <div class="gmeter" title="G-force you feel in your seat. 1 G = normal. Below 0 = airtime (floating). Above 4 = heavy!">
+            <div class="gm-scale"><div class="gm-zone z-red1"></div><div class="gm-zone z-air"></div><div class="gm-zone z-ok"></div><div class="gm-zone z-heavy"></div><div class="gm-zone z-red2"></div><div id="gmNeedle" class="gm-needle"></div></div>
+            <span id="hudG" class="gm-val">1.0 G</span>
+          </div>
+          <div class="energy" title="Energy: potential (height) ⇄ kinetic (speed). Friction turns some into heat.">
+            <div class="en-bar"><div id="enPE" class="en pe"></div><div id="enKE" class="en ke"></div><div id="enHeat" class="en heat"></div></div>
+            <div class="en-legend"><span class="pe">height</span><span class="ke">speed</span><span class="heat">heat</span></div>
+          </div>
+        </div>
+        <div class="hud hud-right">
+          <div class="seg cam-seg" id="camSeg" role="group" aria-label="Camera">
+            <button data-cam="pov" title="Front seat (1)">🎢<span class="cam-txt"> Ride</span></button>
+            <button data-cam="chase" title="Chase camera (2)">🚁<span class="cam-txt"> Chase</span></button>
+            <button data-cam="side" title="Side view (3)">↔<span class="cam-txt"> Side</span></button>
+            <button data-cam="orbit" class="on" title="Look around — drag to spin, scroll to zoom (4)">🌐<span class="cam-txt"> Orbit</span></button>
+          </div>
+          <button id="btnEnterVR" class="btn btn-ghost" type="button" hidden title="Enter Meta Quest VR">🥽 Enter VR</button>
+          <button id="btnFull" class="icon-btn glass" title="Full screen (F)" aria-label="Full screen">⛶</button>
+        </div>
+        <div id="statusChip" class="status-chip" hidden></div>
+        <div id="narration" class="narration"></div>
+        <div id="results" class="results" hidden></div>
+        <div id="fallback3d" class="fallback3d" hidden></div>
+        <div id="loading3d" class="loading3d"><div class="spinner"></div>Building the park…</div>
+      </div>
+
+      <div class="controlbar">
+        <button id="btnRide" class="btn btn-ride">▶ Ride!</button>
+        <button id="btnReset" class="icon-btn" title="Back to the station (R)" aria-label="Back to the station">⟲</button>
+        <div class="ctl-group">
+          <label class="ctl-label" for="startMode">Start</label>
+          <select id="startMode" title="How the train gets its energy">
+            <option value="lift" title="A chain pulls the train up every climb">⛓️ Chain lift</option>
+            <option value="firstlift" title="The chain pulls the train up the first hill only — then it's all gravity">⛰️ One lift hill</option>
+            <option value="launch" title="Launched at a speed you choose">🚀 Launch</option>
+            <option value="gravity" title="No help at all — just gravity">🍃 Gravity only</option>
+          </select>
+          <span id="launchCtl" class="launch-ctl" hidden>
+            <input id="launchSpeed" type="range" min="0" max="100" step="0.5" aria-label="Launch speed">
+            <output id="launchOut"></output>
+            <button id="btnMinLaunch" type="button" class="mini-btn" title="Find the smallest launch speed that makes it to the end">min?</button>
+          </span>
+        </div>
+        <div class="ctl-group">
+          <span class="ctl-label">Time</span>
+          <div class="seg" id="warpSeg" role="group" aria-label="Playback speed">
+            <button data-w="0.25">¼×</button><button data-w="0.5">½×</button><button data-w="1" class="on">1×</button><button data-w="2">2×</button><button data-w="4">4×</button>
+          </div>
+        </div>
+        <label class="toggle" title="Before the ride, guess where the coaster will be fastest"><input type="checkbox" id="chkPredict"><span>🔮 Predict<span class="txt-wide"> first</span></span></label>
+        <div class="spacer"></div>
+        <div class="seg" id="viewSeg" role="group" aria-label="Layout">
+          <button data-v="both" class="on" title="3D + graph">▣<span class="txt-wide"> Both</span></button><button data-v="3d" title="3D only">3D</button><button data-v="2d" title="Graph only">📈<span class="txt-wide"> Graph</span></button>
+        </div>
+      </div>
+
+      <div id="view2d" class="view view2d">
+        <canvas id="c2d" aria-label="Graph of the function with the coaster track"></canvas>
+        <div class="graph-tools" id="graphTools"></div>
+        <div id="graphReadout" class="graph-readout"></div>
+        <div id="predictPrompt" class="predict-prompt" hidden>🔮 Click the track where you think the coaster will reach its <b>top speed</b></div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="pieces" id="tabBtnPieces" hidden>🧩 Pieces</button>
+        <button role="tab" data-tab="blueprint" class="on">📐 Blueprint</button>
+        <button role="tab" data-tab="remix">🧬 Remix</button>
+        <button role="tab" data-tab="missions">🏅 Missions <span id="missionBadge" class="badge"></span></button>
+        <button role="tab" data-tab="garage">🗂️ Garage</button>
+      </nav>
+      <div class="tab-panels">
+        <section id="tab-pieces" class="tab-panel" role="tabpanel"></section>
+        <section id="tab-blueprint" class="tab-panel on" role="tabpanel"></section>
+        <section id="tab-remix" class="tab-panel" role="tabpanel"></section>
+        <section id="tab-missions" class="tab-panel" role="tabpanel"></section>
+        <section id="tab-garage" class="tab-panel" role="tabpanel"></section>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <button class="modal-x" aria-label="Close">×</button>
+    <div class="modal-body"></div>
+  </div>
+</div>
+<div id="keypad" class="keypad" hidden></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<canvas id="confetti" class="confetti"></canvas>
+<!--@@THREE@@-->
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
