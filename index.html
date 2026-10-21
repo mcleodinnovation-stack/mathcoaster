@@ -5160,19 +5160,51 @@ var FCWorld = (function () {
       const cam = this.camera;
       const mode = this.camMode;
       if (this.renderer.xr.isPresenting) {
-        // The lead car's transform is authoritative, including when stopped.
-        // Keep the horizon level for comfort, while steering the forward axis
-        // along the horizontal projection of the track (+X for this 2D ride).
-        const car = this.cars[0];
-        if (car && car.visible) {
-          // local-floor supplies headset eye height. The rig is placed at the
-          // seat/floor origin, NOT at eye height (which would double-count it).
-          this.vrRig.position.set(car.position.x, car.position.y + 0.35, car.position.z);
-          this.vrRig.rotation.set(0, -Math.PI / 2, 0);
-        } else if (this.track) {
-          const p = this.track.poseAt(this.track.segs[0], 0);
-          this.vrRig.position.set(p.X, p.Y + 0.77, 0);
-          this.vrRig.rotation.set(0, -Math.PI / 2, 0);
+        // Match the desktop Ride (POV) camera's actual track-relative position.
+        // Desktop: track point + track normal * 2.05 + tangent * 1.1.
+        // In local-floor WebXR, headset tracking ALREADY adds the user's eye
+        // height; subtract that height from the rig to avoid a second offset.
+        const lead = poses && poses[0] && !poses[0].hidden ? poses[0] : null;
+        const p = lead || (this.track ? this.track.poseAt(this.track.segs[0], 0) : null);
+        if (p) {
+          const tx = Number.isFinite(p.tx) ? p.tx : 1;
+          const ty = Number.isFinite(p.ty) ? p.ty : 0;
+          const nx = -ty, ny = tx;
+          const targetEye = new THREE.Vector3(
+            p.X + nx * 2.05 + tx * 1.1,
+            p.Y + ny * 2.05 + ty * 1.1,
+            0
+          );
+          // Use the SAME forward-looking direction as the desktop Ride camera.
+          // The desktop camera blends the instantaneous track tangent with a
+          // point 9 track-units ahead, so its pitch anticipates hills/drops.
+          let fx = tx, fy = ty;
+          const ahead = sim ? sim.poseAtU(sim.u + 9) : null;
+          if (ahead && !ahead.hidden) {
+            const ax = ahead.X - p.X, ay = ahead.Y - p.Y;
+            const len = Math.hypot(ax, ay) || 1;
+            fx = tx * 0.45 + (ax / len) * 0.55;
+            fy = ty * 0.45 + (ay / len) * 0.55;
+            const norm = Math.hypot(fx, fy) || 1;
+            fx /= norm; fy /= norm;
+          }
+          // In this simulation the track lies in the XY plane. Rotate the
+          // rider's whole XR origin (not the tracked headset camera) so the
+          // default gaze is tangent to the track, including climbing/dropping.
+          // Quest head rotation is then composed on top for free look-around.
+          const forward = new THREE.Vector3(fx, fy, 0);
+          const trackUp = new THREE.Vector3(-fy, fx, 0);
+          const orientation = new THREE.Matrix4().lookAt(
+            new THREE.Vector3(0, 0, 0), forward, trackUp
+          );
+          this.vrRig.quaternion.setFromRotationMatrix(orientation);
+          // Approximate local-floor seated/standing eye height. Can be tuned
+          // without changing the desktop-matched track-relative eye target.
+          const xrEyeHeight = 1.60;
+          const eyeOffset = new THREE.Vector3(0, xrEyeHeight, 0)
+            .applyQuaternion(this.vrRig.quaternion);
+          this.vrRig.position.copy(targetEye).sub(eyeOffset);
+          this.vrRig.updateMatrixWorld(true);
         }
         this.blend = null;
         return;
